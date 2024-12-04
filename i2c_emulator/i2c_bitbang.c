@@ -240,7 +240,6 @@ typedef enum
 } I2C_State;
 
 I2C_State i2c_state = I2C_IDLE;
-
 uint8_t count_bit = 0;
 unsigned char Slave_Address = 0x00;
 unsigned char Slave_rxdata[10] = {0};
@@ -248,7 +247,7 @@ unsigned char index_rxdata = 0;
 bool start_condtion = false;
 bool check_if_stop = false;
 unsigned char bit;
-bool wrong_addr=false;
+
 void check_start_condition()
 {
     if (I2C_Read_SCL() && !I2C_Read_SDA())
@@ -286,6 +285,7 @@ void I2C_Event_Take()
                 i2c_state = I2C_SET_SDA_INPUT_ONLY;
             }
             break;
+
         case I2C_SET_SDA_INPUT_ONLY:
             I2C_SDA_Low();//Send ACK
             count_bit = 0;
@@ -293,6 +293,7 @@ void I2C_Event_Take()
             while (I2C_Read_SCL());//Wait SCL low to change state SDA
             i2c_set_sda_input();
             break;
+
         case I2C_DATA_RECEIVING:
             if (check_if_stop && !I2C_Read_SDA())
             {
