@@ -16,6 +16,7 @@
 ../i2c_emulator/i2c_bitbang.c:10:6:DWT_Clock_Enable	4	static
 ../i2c_emulator/i2c_bitbang.c:20:6:I2C_Bitbang_Init	8	static
 ../i2c_emulator/i2c_bitbang.c:58:6:DWT_Delay_us	24	static
+../i2c_emulator/i2c_bitbang.c:85:22:I2C_SDA_High	8	static
 ../i2c_emulator/i2c_bitbang.c:94:22:I2C_SDA_Low	8	static
 ../i2c_emulator/i2c_bitbang.c:106:31:I2C_Read_SDA	16	static
 ../i2c_emulator/i2c_bitbang.c:118:31:I2C_Read_SCL	16	static
@@ -28,5 +29,5 @@
 ../i2c_emulator/i2c_bitbang.c:217:22:i2c_enable_scl_rising	8	static
 ../i2c_emulator/i2c_bitbang.c:222:22:i2c_disable_scl_rising	8	static
 ../i2c_emulator/i2c_bitbang.c:228:22:i2c_disable_sda_falling	8	static
-../i2c_emulator/i2c_bitbang.c:253:6:check_start_condition	8	static
-../i2c_emulator/i2c_bitbang.c:264:6:I2C_Event_Take	16	static
+../i2c_emulator/i2c_bitbang.c:252:6:check_start_condition	8	static
+../i2c_emulator/i2c_bitbang.c:263:6:I2C_Event_Take	16	static

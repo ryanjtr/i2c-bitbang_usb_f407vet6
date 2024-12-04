@@ -248,7 +248,7 @@ unsigned char index_rxdata = 0;
 bool start_condtion = false;
 bool check_if_stop = false;
 unsigned char bit;
-
+bool wrong_addr=false;
 void check_start_condition()
 {
     if (I2C_Read_SCL() && !I2C_Read_SDA())
@@ -272,27 +272,18 @@ void I2C_Event_Take()
             Slave_Address = (Slave_Address << 1) | bit;
             if (++count_bit == 8)
             {
-                i2c_set_sda_opendrain();
+            	i2c_set_sda_opendrain();
                 if (Slave_Address >> 1 == 0x55)
                 {
                     i2c_state = I2C_SET_SDA_INPUT_ONLY;
+
                 }
                 else
                 {
-                    DWT_Delay_us(25); // 250 for 10KHz, 25 for 100KHz
-                    i2c_set_sda_input();
-                    i2c_state = I2C_IDLE;
-                    count_bit = 0;
-                    start_condtion = false;
-                    i2c_disable_scl_rising();
-                    i2c_enable_sda_falling();
-                    uart_printf("addr fail\r\n");
-                    Slave_Address = 0x00;
-                    for (int i = 0; i < 10; i++)
-                    {
-                        Slave_rxdata[i] = 0;
-                    }
+                	I2C_SDA_High();
+                    goto here;
                 }
+                i2c_state = I2C_SET_SDA_INPUT_ONLY;
             }
             break;
         case I2C_SET_SDA_INPUT_ONLY:
@@ -342,6 +333,7 @@ void I2C_Event_Take()
         {
             Slave_rxdata[i] = 0;
         }
+        i2c_set_sda_input();
         i2c_disable_scl_rising();
         i2c_enable_sda_falling();
     }
