@@ -153,7 +153,7 @@ __STATIC_INLINE void i2c_set_sda_opendrain()
     LL_GPIO_SetPinMode(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinOutputType(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_OUTPUT_OPENDRAIN);
     LL_GPIO_SetPinSpeed(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_SPEED_FREQ_HIGH);
-    LL_GPIO_SetPinPull(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_PULL_NO);
+    LL_GPIO_SetPinPull(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_PULL_UP);
 }
 
 __STATIC_INLINE void i2c_set_scl_opendrain()
@@ -166,7 +166,7 @@ __STATIC_INLINE void i2c_set_scl_opendrain()
 __STATIC_INLINE void i2c_set_sda_input()
 {
     LL_GPIO_SetPinMode(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_MODE_INPUT);
-    LL_GPIO_SetPinPull(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_PULL_NO);
+    LL_GPIO_SetPinPull(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_PULL_UP);
 }
 
 __STATIC_INLINE void i2c_enable_sda_falling()
@@ -221,12 +221,13 @@ uint8_t count_bit = 0;
 unsigned char Slave_Address = 0x00;
 unsigned char Slave_rxdata[10] = {0};
 unsigned char index_rxdata = 0;
-unsigned char Slave_txdata[10] = {0x35, 0x80, 0x94, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10};
+unsigned char Slave_txdata[10] = {0x35, 0x86, 0x37, 0x88, 0x39, 0x40, 0x07, 0x08, 0x09, 0x10};
 unsigned char index_txdata = 0;
 bool start_condtion = false;
 bool check_if_stop = false;
 unsigned char bit;
 unsigned char bit_RW;
+bool stop_condition = false;
 
 void check_start_condition()
 {
@@ -256,6 +257,18 @@ void I2C_Event_Take()
                 {
                     i2c_state = I2C_SET_SDA_INPUT_ONLY;
                     bit_RW = Slave_Address & 0x01;
+                    if (bit_RW)
+                    {
+                        while (I2C_Read_SCL())
+                            ;
+                        I2C_SDA_Low();
+                        i2c_set_scl_falling();
+                        i2c_state=I2C_DATA_SENDING;
+                        count_bit=7;
+                        bit=(Slave_txdata[index_txdata] >> count_bit) & 0x01;
+                        I2C_Write_Bit(bit);
+                        --count_bit;
+                    }
                 }
                 else
                 {
@@ -277,15 +290,12 @@ void I2C_Event_Take()
             }
             else
             {
-                while (I2C_Read_SCL())
-                    ;
-                I2C_SDA_High();
                 count_bit = 7;
                 i2c_state = I2C_DATA_SENDING;
-                while (!I2C_Read_SCL())
-                    I2C_Write_Bit((Slave_txdata[index_txdata] >> count_bit) & 0x01);
+                //                while (I2C_Read_SCL());
+                I2C_Write_Bit((Slave_txdata[index_txdata] >> count_bit) & 0x01);
                 --count_bit;
-                i2c_set_scl_falling();
+//                                i2c_set_scl_falling();
             }
             break;
 
@@ -313,7 +323,7 @@ void I2C_Event_Take()
             break;
 
         case I2C_DATA_SENDING:
-            if (check_if_stop && !I2C_Read_SDA())
+            if (check_if_stop && !I2C_Read_SDA() && I2C_Read_SCL())
             {
                 goto here;
             }
@@ -321,25 +331,14 @@ void I2C_Event_Take()
             {
                 check_if_stop = false;
             }
-            //            bit = (Slave_txdata[index_txdata] >> count_bit) & 0x01;
-            while (!I2C_Read_SCL())
-                I2C_Write_Bit((Slave_txdata[index_txdata] >> count_bit) & 0x01);
+            bit = (Slave_txdata[index_txdata] >> count_bit) & 0x01;
+            I2C_Write_Bit(bit);
             if (count_bit-- == 0)
             {
-                //                while (I2C_Read_SCL())
-                //                    ;
-                //                I2C_SDA_High();
-                //                i2c_set_sda_input();
                 check_if_stop = true;
                 ++index_txdata;
                 count_bit = 7;
                 i2c_state = I2C_ACK_RECEIVING;
-                while (!I2C_Read_SCL())
-                    ;
-                //                if (I2C_Read_SDA())
-                //                {
-                //                    goto here;
-                //                }
             }
 
             break;
@@ -348,19 +347,16 @@ void I2C_Event_Take()
             while (I2C_Read_SCL())
                 ;
             i2c_set_sda_input();
-            while(!I2C_Read_SCL());
             if (I2C_Read_SDA())
             {
                 goto here;
             }
-            while(I2C_Read_SCL());
             i2c_set_sda_opendrain();
-            //                        i2c_set_scl_rising();
-            //            i2c_set_scl_falling();
-            while (!I2C_Read_SCL())
-                I2C_Write_Bit((Slave_txdata[index_txdata] >> count_bit) & 0x01);
+            bit=(Slave_txdata[index_txdata] >> count_bit) & 0x01;
+            I2C_Write_Bit(bit);
             --count_bit;
-
+//            if(index_txdata==2)
+//            	index_rxdata=0;
             break;
         case I2C_IDLE:
             break;
@@ -371,6 +367,10 @@ void I2C_Event_Take()
     if (0)
     {
     here:
+        //		while(I2C_Read_SCL());
+        i2c_set_sda_input();
+        i2c_disable_scl_rising();
+        i2c_enable_sda_falling();
         count_bit = 0;
         start_condtion = false;
         check_if_stop = false;
@@ -381,9 +381,7 @@ void I2C_Event_Take()
         {
             Slave_rxdata[i] = 0;
         }
-        //                i2c_set_sda_input();
-        //                i2c_disable_scl_rising();
-        //                i2c_enable_sda_falling();
-        I2C_Bitbang_Init();
+
+        //        I2C_Bitbang_Init();
     }
 }
