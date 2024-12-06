@@ -44,6 +44,7 @@
 
 /* USER CODE BEGIN PV */
 extern unsigned char  index_txdata;
+extern uint8_t time;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
