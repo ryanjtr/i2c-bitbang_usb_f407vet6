@@ -269,8 +269,8 @@ void I2C_Event_Take()
                 }
                 else
                 {
-                    while (I2C_Read_SCL())
-                        ;
+//                    while (I2C_Read_SCL())
+//                        ;
                     I2C_SDA_High();
                     restart_i2c = true;
                 }
@@ -315,6 +315,8 @@ void I2C_Event_Take()
                 I2C_SDA_Low(); // Send ACK
                 ++index_rxdata;
                 check_if_stop = true;
+                while (I2C_Read_SCL())
+                                ;
                 i2c_set_sda_input();
             }
             break;
@@ -369,6 +371,7 @@ void I2C_Event_Take()
     }
     if (restart_i2c)
     {
+
         count_bit = 0;
         start_condtion = false;
         check_if_stop = false;
@@ -380,6 +383,7 @@ void I2C_Event_Take()
         {
             Slave_rxdata[i] = 0;
         }
+
         i2c_set_sda_input();
         i2c_disable_scl_rising();
         i2c_enable_sda_falling();
