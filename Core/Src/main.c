@@ -47,6 +47,8 @@ extern unsigned char  index_txdata;
 extern uint8_t time;
 extern uint8_t Slave_txdata[256];
 extern unsigned char bit_RW;
+extern uint8_t count_falling;
+extern uint8_t count_rising;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
