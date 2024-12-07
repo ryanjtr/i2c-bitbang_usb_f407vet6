@@ -223,7 +223,7 @@ uint8_t count_bit = 0;
 unsigned char Slave_Address = 0x00;
 unsigned char Slave_rxdata[10] = {0};
 unsigned char index_rxdata = 0;
-uint8_t Slave_txdata[10] = {0x85, 0x86, 0x97, 0x88, 0x69, 0x98, 0x07, 0x08, 0x09, 0x10};
+uint8_t Slave_txdata[10] = {0x85, 0x86, 0x97, 0x69, 0x69, 0x98, 0x07, 0x08, 0x09, 0x10};
 unsigned char index_txdata = 0;
 bool start_condtion = false;
 bool check_if_stop = false;
@@ -312,16 +312,7 @@ void I2C_Event_Take()
             }
             break;
         case I2C_DATA_SENDING:
-            if (check_if_stop && !I2C_Read_SDA() && I2C_Read_SCL())
-            {
-                restart_i2c = true;
-                if (time == 1)
-                    bit = 0;
-            }
-            else
-            {
-                check_if_stop = false;
-            }
+
             bit = (Slave_txdata[index_txdata] >> count_bit) & 0x01;
             I2C_Write_Bit(bit);
             if (count_bit-- == 0)
@@ -343,7 +334,7 @@ void I2C_Event_Take()
                 //                restart_i2c = true;
                 //                i2c_set_sda_opendrain();
                 //            	i2c_state=I2C_DATA_SENDING;
-                //                            	i2c_state=I2C_IDLE;
+                i2c_state = I2C_STOP;
                 i2c_set_scl_rising();
             }
             else
@@ -355,6 +346,12 @@ void I2C_Event_Take()
             }
             break;
         case I2C_IDLE:
+            break;
+        case I2C_STOP:
+            if (!I2C_Read_SDA() && I2C_Read_SCL())
+            {
+                restart_i2c = true;
+            }
             break;
         default:
             break;
