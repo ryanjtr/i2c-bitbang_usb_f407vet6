@@ -45,6 +45,8 @@
 /* USER CODE BEGIN PV */
 extern unsigned char  index_txdata;
 extern uint8_t time;
+extern uint8_t Slave_txdata[256];
+extern unsigned char bit_RW;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -95,6 +97,12 @@ int main(void)
   I2C_Bitbang_Init();
   uart_printf("slave-f407vet\r\n");
   DWT_Clock_Enable();
+
+  Slave_txdata[0]=0x00;
+  for (int i=1;i<256;i++)
+  {
+  	Slave_txdata[i]=Slave_txdata[i-1]+1;
+  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
