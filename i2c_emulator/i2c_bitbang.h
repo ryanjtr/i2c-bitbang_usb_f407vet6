@@ -29,6 +29,12 @@
 
 
 
+//typedef struct
+//{
+//	I2C_State i2c_status;
+//
+//}i2c_t;
+
 void I2C_Bitbang_Init(void);
 void DWT_Clock_Enable(void);
 void DWT_Delay_us(volatile uint32_t microseconds);

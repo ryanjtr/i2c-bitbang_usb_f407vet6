@@ -215,7 +215,7 @@ typedef enum
     I2C_DATA_SENDING,
     I2C_ACK_RECEIVING,
     I2C_STOP,
-    I2C_SS,
+    I2C_WAIT,
     I2C_CHANGE_FALL_TO_RISE,
     I2C_READ_ACK,
 } I2C_State;
@@ -223,7 +223,7 @@ typedef enum
 I2C_State i2c_state = I2C_IDLE;
 uint8_t count_bit = 0;
 unsigned char Slave_Address = 0x00;
-unsigned char Slave_rxdata[10] = {0};
+unsigned char Slave_rxdata[256] = {0};
 uint8_t index_rxdata = 0;
 uint8_t Slave_txdata[256] = {0};
 uint8_t index_txdata = 0;
@@ -236,13 +236,16 @@ bool restart_i2c = false;
 uint8_t time = 0;
 uint8_t count_falling = 0;
 uint8_t count_rising = 0;
+unsigned char bit_sda;
+unsigned char bit_scl;
+bool is_nack = true;
 void check_start_condition()
 {
     if (I2C_Read_SCL() && !I2C_Read_SDA())
     {
         start_condtion = true;
         i2c_state = I2C_ADDRESS_RECEIVING;
-        while (I2C_Read_SCL())
+        while (I2C_Read_SCL()) // Don`t delete
             ;
         i2c_disable_sda_falling();
         i2c_enable_scl_rising();
@@ -257,7 +260,6 @@ void I2C_Event_Take()
         switch (i2c_state)
         {
         case I2C_ADDRESS_RECEIVING:
-            ++count_rising;
             Slave_Address = (Slave_Address << 1) | bit;
             if (++count_bit == 8)
             {
@@ -288,11 +290,9 @@ void I2C_Event_Take()
             {
                 count_bit = 7;
                 i2c_state = I2C_DATA_SENDING;
-                while (I2C_Read_SCL())
-                    ;
+                i2c_set_scl_falling();
                 I2C_Write_Bit((Slave_txdata[index_txdata] >> count_bit) & 0x01);
                 --count_bit;
-                i2c_set_scl_falling();
             }
 
             break;
@@ -303,9 +303,9 @@ void I2C_Event_Take()
                 while (I2C_Read_SCL())
                 {
                     ++count;
-                    if(count>1000)
+                    if (count > 1000)
                     {
-                    	break;
+                        break;
                     }
                 }
                 if (I2C_Read_SCL() && I2C_Read_SDA() && check_if_stop)
@@ -327,24 +327,22 @@ void I2C_Event_Take()
                 i2c_set_sda_input();
             }
             break;
+
         case I2C_DATA_SENDING:
-            ++count_falling;
-            ++count_rising;
-            bit = (Slave_txdata[index_txdata] >> count_bit) & 0x01;
-            I2C_Write_Bit(bit);
+
+            I2C_Write_Bit((Slave_txdata[index_txdata] >> count_bit) & 0x01);
             if (count_bit-- == 0)
             {
                 check_if_stop = true;
-                ++index_txdata;
+            	++index_txdata;
                 count_bit = 7;
                 i2c_state = I2C_ACK_RECEIVING;
+                i2c_set_sda_input();
             }
-
             break;
 
         case I2C_ACK_RECEIVING:
-            i2c_state = I2C_DATA_SENDING;
-            i2c_set_sda_input();
+
             if (I2C_Read_SDA())
             {
                 i2c_state = I2C_STOP;
@@ -352,20 +350,29 @@ void I2C_Event_Take()
             }
             else
             {
-                i2c_set_sda_opendrain();
-                bit = (Slave_txdata[index_txdata] >> count_bit) & 0x01;
-                I2C_Write_Bit(bit);
+            	i2c_set_sda_opendrain();
+                I2C_Write_Bit((Slave_txdata[index_txdata] >> count_bit) & 0x01);
                 --count_bit;
+                i2c_state = I2C_DATA_SENDING;
             }
             break;
         case I2C_IDLE:
             break;
         case I2C_STOP:
-            while (!I2C_Read_SCL())
-                ;
+
             if (check_if_stop && !I2C_Read_SDA() && I2C_Read_SCL())
             {
-                restart_i2c = true;
+                uint32_t count = 0;
+                while (I2C_Read_SCL())
+                {
+                    ++count;
+                    if (count > 1000)
+                    {
+                        break;
+                    }
+                }
+                if (I2C_Read_SCL() && I2C_Read_SDA() && check_if_stop)
+                    restart_i2c = true;
             }
             else
             {
@@ -378,14 +385,15 @@ void I2C_Event_Take()
     }
     if (restart_i2c)
     {
-    	++time;
+        //        ++time;
         count_bit = 0;
         start_condtion = false;
         check_if_stop = false;
         restart_i2c = false;
         i2c_state = I2C_IDLE;
+        Slave_Address = 0x00;
         index_rxdata = 0;
-        //        index_txdata = 0;
+        index_txdata = 0;
         for (int i = 0; i < index_rxdata; i++)
         {
             Slave_rxdata[i] = 0;
