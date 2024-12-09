@@ -1,5 +1,5 @@
 #include "i2c_bitbang.h"
-
+#include  "main.h"
 /*Important: When using I2C bitbanging, you have to configure I2C GPIO in ioc
  * to input pull-up resistor
  */
@@ -15,12 +15,11 @@ void DWT_Clock_Enable(void)
         DWT->CYCCNT = 0;                                // Reset bộ đếm
         DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;            // Bật bộ đếm chu kỳ
     }
+
 }
 
 void I2C_Bitbang_Init(void)
 {
-    LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
-
     /*Configure SDA pin to input interrupt falling edge
      * after detect start condition, then disable interrupt.
      * When receive 8 bit address, change it to output open-drain float
@@ -29,6 +28,14 @@ void I2C_Bitbang_Init(void)
     /*Configure SCL pin as input first
      * after detecting start condition, then change it to interrupt rising edge (input)
      */
+	LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_6);
+	LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_7);
+	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
+	LL_EXTI_DisableIT_0_31(LL_EXTI_LINE_6);
+	LL_EXTI_DisableIT_0_31(LL_EXTI_LINE_7);
+	LL_EXTI_DisableRisingTrig_0_31(LL_EXTI_LINE_6);
+	LL_EXTI_DisableFallingTrig_0_31(LL_EXTI_LINE_7);
+	NVIC_DisableIRQ(EXTI9_5_IRQn);
 
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
 
@@ -166,7 +173,7 @@ __STATIC_INLINE void i2c_set_scl_opendrain()
 __STATIC_INLINE void i2c_set_sda_input()
 {
     LL_GPIO_SetPinMode(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_MODE_INPUT);
-    LL_GPIO_SetPinPull(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_PULL_UP);
+    LL_GPIO_SetPinPull(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_PULL_NO);
 }
 
 __STATIC_INLINE void i2c_enable_sda_falling()
@@ -205,6 +212,7 @@ __STATIC_INLINE void i2c_set_scl_rising()
     LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_6);
     LL_EXTI_EnableRisingTrig_0_31(LL_EXTI_LINE_6);
 }
+
 // Bring to file.h later
 typedef enum
 {
@@ -271,6 +279,8 @@ void I2C_Event_Take()
                 {
                     i2c_state = I2C_SET_SDA_INPUT_ONLY;
                     bit_RW = Slave_Address & 0x01;
+//                    if(time==2)
+//                    	time=0;
                 }
                 else
                 {
@@ -333,14 +343,15 @@ void I2C_Event_Take()
             }
             break;
         case I2C_DATA_SENDING:
-            bit = (Slave_txdata[index_txdata] >> count_bit) & 0x01;
-            I2C_Write_Bit(bit);
+            I2C_Write_Bit((Slave_txdata[index_txdata] >> count_bit) & 0x01);
             if (count_bit-- == 0)
             {
                 check_if_stop = true;
                 ++index_txdata;
                 count_bit = 7;
                 i2c_state = I2C_ACK_RECEIVING;
+                while(!I2C_Read_SCL());
+                I2C_Write_Bit(0);
             }
 
             break;
@@ -381,7 +392,7 @@ void I2C_Event_Take()
     }
     if (restart_i2c)
     {
-
+    	++time;
         count_bit = 0;
         start_condtion = false;
         check_if_stop = false;
@@ -393,9 +404,11 @@ void I2C_Event_Take()
         {
             Slave_rxdata[i] = 0;
         }
-
-        i2c_set_sda_input();
-        i2c_disable_scl_rising();
-        i2c_enable_sda_falling();
+//        HAL_NVIC_SystemReset();
+        I2C_Bitbang_Init();
+//        i2c_set_sda_input();
+//        i2c_disable_scl_rising();
+//        i2c_enable_sda_falling();
+//        I2C_Reset_Bitbang();
     }
 }

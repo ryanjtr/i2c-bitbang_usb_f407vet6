@@ -286,19 +286,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-uint32_t Calculate_APB1_clk()
-{
-	uint32_t PPRE1 = (RCC->CFGR >> 10) & 0x7;
-	switch(PPRE1)
-	{
-	case 0: return (SystemCoreClock/1);//SystemCoreClock=HCLK_freq
-	case 4: return (SystemCoreClock/2);
-	case 5: return (SystemCoreClock/4);
-	case 6: return (SystemCoreClock/8);
-	case 7: return (SystemCoreClock/16);
-	}
-	return SystemCoreClock/1;
-}
+
 /* USER CODE END 4 */
 
 /**
