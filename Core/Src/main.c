@@ -110,8 +110,8 @@ int main(void)
   for (int i=1;i<256;i++)
   {
 	Slave_txdata[i]=Slave_txdata[i-1]+1;
-  	if(Slave_txdata[i]&0x01)
-  		++Slave_txdata[i];
+//  	if(Slave_txdata[i]&0x01)
+//  		++Slave_txdata[i];
 
   }
   /* USER CODE END 2 */
@@ -133,8 +133,8 @@ int main(void)
   */
 void SystemClock_Config(void)
 {
-  LL_FLASH_SetLatency(LL_FLASH_LATENCY_2);
-  while(LL_FLASH_GetLatency()!= LL_FLASH_LATENCY_2)
+  LL_FLASH_SetLatency(LL_FLASH_LATENCY_1);
+  while(LL_FLASH_GetLatency()!= LL_FLASH_LATENCY_1)
   {
   }
   LL_PWR_SetRegulVoltageScaling(LL_PWR_REGU_VOLTAGE_SCALE1);
@@ -145,8 +145,8 @@ void SystemClock_Config(void)
   {
 
   }
-  LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSE, LL_RCC_PLLM_DIV_4, 192, LL_RCC_PLLP_DIV_6);
-  LL_RCC_PLL_ConfigDomain_48M(LL_RCC_PLLSOURCE_HSE, LL_RCC_PLLM_DIV_4, 192, LL_RCC_PLLQ_DIV_8);
+  LL_RCC_PLL_ConfigDomain_SYS(LL_RCC_PLLSOURCE_HSE, LL_RCC_PLLM_DIV_4, 120, LL_RCC_PLLP_DIV_2);
+  LL_RCC_PLL_ConfigDomain_48M(LL_RCC_PLLSOURCE_HSE, LL_RCC_PLLM_DIV_4, 120, LL_RCC_PLLQ_DIV_5);
   LL_RCC_PLL_Enable();
 
    /* Wait till PLL is ready */
@@ -157,7 +157,7 @@ void SystemClock_Config(void)
   while (LL_PWR_IsActiveFlag_VOS() == 0)
   {
   }
-  LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_1);
+  LL_RCC_SetAHBPrescaler(LL_RCC_SYSCLK_DIV_2);
   LL_RCC_SetAPB1Prescaler(LL_RCC_APB1_DIV_2);
   LL_RCC_SetAPB2Prescaler(LL_RCC_APB2_DIV_1);
   LL_RCC_SetSysClkSource(LL_RCC_SYS_CLKSOURCE_PLL);
@@ -167,7 +167,7 @@ void SystemClock_Config(void)
   {
 
   }
-  LL_SetSystemCoreClock(64000000);
+  LL_SetSystemCoreClock(60000000);
 
    /* Update the time base */
   if (HAL_InitTick (TICK_INT_PRIORITY) != HAL_OK)
