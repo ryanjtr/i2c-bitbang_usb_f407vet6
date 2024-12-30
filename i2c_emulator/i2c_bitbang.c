@@ -1,5 +1,6 @@
 #include "i2c_bitbang.h"
-#include  "main.h"
+#include "main.h"
+#include "usbd_cdc_if.h"
 /*Important: When using I2C bitbanging, you have to configure I2C GPIO in ioc
  * to input pull-up resistor
  */
@@ -15,7 +16,6 @@ void DWT_Clock_Enable(void)
         DWT->CYCCNT = 0;                                // Reset bộ đếm
         DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;            // Bật bộ đếm chu kỳ
     }
-
 }
 
 void I2C_Bitbang_Init(void)
@@ -28,14 +28,6 @@ void I2C_Bitbang_Init(void)
     /*Configure SCL pin as input first
      * after detecting start condition, then change it to interrupt rising edge (input)
      */
-	LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_6);
-	LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_7);
-	LL_AHB1_GRP1_DisableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
-	LL_EXTI_DisableIT_0_31(LL_EXTI_LINE_6);
-	LL_EXTI_DisableIT_0_31(LL_EXTI_LINE_7);
-	LL_EXTI_DisableRisingTrig_0_31(LL_EXTI_LINE_6);
-	LL_EXTI_DisableFallingTrig_0_31(LL_EXTI_LINE_7);
-	NVIC_DisableIRQ(EXTI9_5_IRQn);
 
     LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
 
@@ -56,7 +48,7 @@ void I2C_Bitbang_Init(void)
     LL_GPIO_SetPinMode(I2C_GPIO_PORT, I2C_SCL_PIN, LL_GPIO_MODE_INPUT);
     LL_GPIO_SetPinPull(I2C_GPIO_PORT, I2C_SCL_PIN, LL_GPIO_PULL_NO);
 
-    NVIC_SetPriority(EXTI9_5_IRQn, 0);
+    NVIC_SetPriority(EXTI9_5_IRQn, 2);
     NVIC_EnableIRQ(EXTI9_5_IRQn);
 }
 /**
@@ -160,7 +152,7 @@ __STATIC_INLINE void i2c_set_sda_opendrain()
     LL_GPIO_SetPinMode(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_MODE_OUTPUT);
     LL_GPIO_SetPinOutputType(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_OUTPUT_OPENDRAIN);
     LL_GPIO_SetPinSpeed(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_SPEED_FREQ_HIGH);
-    LL_GPIO_SetPinPull(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_PULL_UP);
+    LL_GPIO_SetPinPull(I2C_GPIO_PORT, I2C_SDA_PIN, LL_GPIO_PULL_NO);
 }
 
 __STATIC_INLINE void i2c_set_scl_opendrain()
@@ -221,6 +213,7 @@ typedef enum
     I2C_SET_SDA_INPUT_ONLY,
     I2C_DATA_RECEIVING,
     I2C_DATA_SENDING,
+    I2C_SENDING_ACK,
     I2C_ACK_RECEIVING,
     I2C_STOP,
     I2C_WAIT,
@@ -232,7 +225,7 @@ typedef enum
 
 I2C_State i2c_state = I2C_IDLE;
 uint8_t count_bit = 0;
-unsigned char Slave_Address = 0x00;
+uint8_t Slave_Address = 0x00;
 unsigned char Slave_rxdata[256] = {0};
 uint8_t index_rxdata = 0;
 uint8_t Slave_txdata[256] = {0};
@@ -243,12 +236,18 @@ unsigned char bit;
 unsigned char bit_RW;
 bool stop_condition = false;
 bool restart_i2c = false;
-uint8_t time = 0;
 uint8_t count_falling = 0;
 uint8_t count_rising = 0;
 unsigned char bit_sda;
 unsigned char bit_scl;
 bool is_nack = true;
+uint8_t address[2] = {0};
+uint8_t ReceivedData[100];
+uint8_t list_addr_slave[5] = {0x55, 0x56, 0x57, 0x58, 0x59};
+bool correct_address = false;
+
+
+/* I2C master clock speed = 100KHz*/
 void check_start_condition()
 {
     if (I2C_Read_SCL() && !I2C_Read_SDA())
@@ -271,16 +270,22 @@ void I2C_Event_Take()
         {
         case I2C_ADDRESS_RECEIVING:
             ++count_rising;
-            Slave_Address = (Slave_Address << 1) | bit;
+            Slave_Address = (Slave_Address << 1 | bit);
             if (++count_bit == 8)
             {
                 i2c_set_sda_opendrain();
-                if (Slave_Address >> 1 == 0x55)
+                for (int i = 0; i < 5; i++)
                 {
-                    i2c_state = I2C_SET_SDA_INPUT_ONLY;
+                    if (Slave_Address >> 1 == list_addr_slave[i])
+                    {
+                        correct_address = true;
+                        break;
+                    }
+                }
+                if (correct_address)
+                {
                     bit_RW = Slave_Address & 0x01;
-//                    if(time==2)
-//                    	time=0;
+                    i2c_state = I2C_SET_SDA_INPUT_ONLY;
                 }
                 else
                 {
@@ -333,15 +338,23 @@ void I2C_Event_Take()
             Slave_rxdata[index_rxdata] = (Slave_rxdata[index_rxdata] << 1) | bit;
             if (++count_bit % 8 == 0)
             {
+                while (I2C_Read_SCL())
+                    ;
                 i2c_set_sda_opendrain();
                 I2C_SDA_Low(); // Send ACK
                 ++index_rxdata;
                 check_if_stop = true;
-                while (I2C_Read_SCL())
-                    ;
-                i2c_set_sda_input();
+                i2c_state = I2C_SENDING_ACK;
             }
             break;
+
+        case I2C_SENDING_ACK:
+            i2c_state = I2C_DATA_RECEIVING;
+            while (I2C_Read_SCL())
+                ;
+            i2c_set_sda_input();
+            break;
+
         case I2C_DATA_SENDING:
             I2C_Write_Bit((Slave_txdata[index_txdata] >> count_bit) & 0x01);
             if (count_bit-- == 0)
@@ -350,7 +363,8 @@ void I2C_Event_Take()
                 ++index_txdata;
                 count_bit = 7;
                 i2c_state = I2C_ACK_RECEIVING;
-                while(!I2C_Read_SCL());
+                while (!I2C_Read_SCL())
+                    ;
                 I2C_Write_Bit(0);
             }
 
@@ -392,23 +406,19 @@ void I2C_Event_Take()
     }
     if (restart_i2c)
     {
-    	++time;
         count_bit = 0;
         start_condtion = false;
         check_if_stop = false;
         restart_i2c = false;
+        correct_address = false;
         i2c_state = I2C_IDLE;
-        index_rxdata = 0;
-        index_txdata = 0;
         for (int i = 0; i < index_rxdata; i++)
         {
+            uart_printf("d%d=0x%02X\r\n", i, Slave_rxdata[i]);
             Slave_rxdata[i] = 0;
         }
-//        HAL_NVIC_SystemReset();
+        index_rxdata = 0;
+        index_txdata = 0;
         I2C_Bitbang_Init();
-//        i2c_set_sda_input();
-//        i2c_disable_scl_rising();
-//        i2c_enable_sda_falling();
-//        I2C_Reset_Bitbang();
     }
 }
