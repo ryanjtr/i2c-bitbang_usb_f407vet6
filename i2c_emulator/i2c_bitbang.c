@@ -215,6 +215,7 @@ typedef enum
     I2C_DATA_SENDING,
     I2C_SENDING_ACK,
     I2C_ACK_RECEIVING,
+    I2C_CONFIG_SDA_INPUT,
     I2C_STOP,
     I2C_WAIT,
     I2C_CHANGE_FALL_TO_RISE,
@@ -245,7 +246,6 @@ uint8_t address[2] = {0};
 uint8_t ReceivedData[100];
 uint8_t list_addr_slave[5] = {0x55, 0x56, 0x57, 0x58, 0x59};
 bool correct_address = false;
-
 
 /* I2C master clock speed = 100KHz*/
 void check_start_condition()
@@ -284,6 +284,7 @@ void I2C_Event_Take()
                 }
                 if (correct_address)
                 {
+                    I2C_SDA_Low(); // Send ACK
                     bit_RW = Slave_Address & 0x01;
                     i2c_state = I2C_SET_SDA_INPUT_ONLY;
                 }
@@ -295,7 +296,7 @@ void I2C_Event_Take()
             }
             break;
         case I2C_SET_SDA_INPUT_ONLY:
-            I2C_SDA_Low(); // Send ACK
+
             if (!bit_RW)
             {
                 count_bit = 0;
@@ -311,8 +312,8 @@ void I2C_Event_Take()
                 while (I2C_Read_SCL())
                     ;
                 I2C_Write_Bit((Slave_txdata[index_txdata] >> count_bit) & 0x01);
+                //                i2c_set_scl_falling();
                 --count_bit;
-                i2c_set_scl_falling();
             }
 
             break;
@@ -356,33 +357,39 @@ void I2C_Event_Take()
             break;
 
         case I2C_DATA_SENDING:
+            while (I2C_Read_SCL())
+                ;
             I2C_Write_Bit((Slave_txdata[index_txdata] >> count_bit) & 0x01);
             if (count_bit-- == 0)
             {
                 check_if_stop = true;
                 ++index_txdata;
                 count_bit = 7;
-                i2c_state = I2C_ACK_RECEIVING;
-                while (!I2C_Read_SCL())
-                    ;
-                I2C_Write_Bit(0);
+                i2c_state = I2C_CONFIG_SDA_INPUT;
+
+                //                while (!I2C_Read_SCL())
+                //                    ;
+                //                I2C_Write_Bit(0);
             }
-
             break;
-
+        case I2C_CONFIG_SDA_INPUT:
+            while (I2C_Read_SCL())
+                ;
+            i2c_set_sda_input();
+            i2c_state = I2C_ACK_RECEIVING;
+            break;
         case I2C_ACK_RECEIVING:
             i2c_state = I2C_DATA_SENDING;
-            i2c_set_sda_input();
             if (I2C_Read_SDA())
             {
                 i2c_state = I2C_STOP;
-                i2c_set_scl_rising();
             }
             else
             {
+                while (I2C_Read_SCL())
+                    ;
                 i2c_set_sda_opendrain();
-                bit = (Slave_txdata[index_txdata] >> count_bit) & 0x01;
-                I2C_Write_Bit(bit);
+                I2C_Write_Bit((Slave_txdata[index_txdata] >> count_bit) & 0x01);
                 --count_bit;
             }
             break;
@@ -393,7 +400,9 @@ void I2C_Event_Take()
                 ;
             if (check_if_stop && !I2C_Read_SDA() && I2C_Read_SCL())
             {
-                restart_i2c = true;
+                DWT_Delay_us(10);
+                if (I2C_Read_SDA() && I2C_Read_SCL())
+                    restart_i2c = true;
             }
             else
             {
@@ -414,7 +423,7 @@ void I2C_Event_Take()
         i2c_state = I2C_IDLE;
         for (int i = 0; i < index_rxdata; i++)
         {
-            uart_printf("d%d=0x%02X\r\n", i, Slave_rxdata[i]);
+            //            uart_printf("d%d=0x%02X\r\n", i, Slave_rxdata[i]);
             Slave_rxdata[i] = 0;
         }
         index_rxdata = 0;

@@ -108,11 +108,7 @@ int main(void)
   for (int i=1;i<256;i++)
   {
 	Slave_txdata[i]=Slave_txdata[i-1]+1;
-//  	if(Slave_txdata[i]&0x01)
-//  		++Slave_txdata[i];
-
   }
-  LL_GPIO_TogglePin(GPIOB, LL_GPIO_PIN_3);
 //  CDC_Transmit_FS(address, 1);
   /* USER CODE END 2 */
 
