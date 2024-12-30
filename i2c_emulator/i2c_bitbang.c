@@ -237,11 +237,6 @@ unsigned char bit;
 unsigned char bit_RW;
 bool stop_condition = false;
 bool restart_i2c = false;
-uint8_t count_falling = 0;
-uint8_t count_rising = 0;
-unsigned char bit_sda;
-unsigned char bit_scl;
-bool is_nack = true;
 uint8_t address[2] = {0};
 uint8_t ReceivedData[100];
 uint8_t list_addr_slave[5] = {0x55, 0x56, 0x57, 0x58, 0x59};
@@ -269,10 +264,10 @@ void I2C_Event_Take()
         switch (i2c_state)
         {
         case I2C_ADDRESS_RECEIVING:
-            ++count_rising;
             Slave_Address = (Slave_Address << 1 | bit);
             if (++count_bit == 8)
             {
+            	DWT_Delay_us(5);
                 i2c_set_sda_opendrain();
                 for (int i = 0; i < 5; i++)
                 {
@@ -284,7 +279,7 @@ void I2C_Event_Take()
                 }
                 if (correct_address)
                 {
-                    I2C_SDA_Low(); // Send ACK
+                	I2C_SDA_Low(); // Send ACK
                     bit_RW = Slave_Address & 0x01;
                     i2c_state = I2C_SET_SDA_INPUT_ONLY;
                 }
@@ -296,6 +291,7 @@ void I2C_Event_Take()
             }
             break;
         case I2C_SET_SDA_INPUT_ONLY:
+
 
             if (!bit_RW)
             {
@@ -312,7 +308,6 @@ void I2C_Event_Take()
                 while (I2C_Read_SCL())
                     ;
                 I2C_Write_Bit((Slave_txdata[index_txdata] >> count_bit) & 0x01);
-                //                i2c_set_scl_falling();
                 --count_bit;
             }
 
@@ -366,10 +361,6 @@ void I2C_Event_Take()
                 ++index_txdata;
                 count_bit = 7;
                 i2c_state = I2C_CONFIG_SDA_INPUT;
-
-                //                while (!I2C_Read_SCL())
-                //                    ;
-                //                I2C_Write_Bit(0);
             }
             break;
         case I2C_CONFIG_SDA_INPUT:
@@ -393,8 +384,7 @@ void I2C_Event_Take()
                 --count_bit;
             }
             break;
-        case I2C_IDLE:
-            break;
+
         case I2C_STOP:
             while (!I2C_Read_SCL())
                 ;
