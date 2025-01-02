@@ -229,12 +229,12 @@ void OTG_FS_IRQHandler(void)
 void EXTI9_5_IRQHandler(void) {
 
     if (LL_EXTI_IsActiveFlag_0_31(LL_EXTI_LINE_6)) {
-        I2C_Event_Take();
+    	I2C_Handle_Event();
         LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_6);
     }
     if (LL_EXTI_IsActiveFlag_0_31(LL_EXTI_LINE_7))
         {
-    		check_start_condition();
+    	I2C_Check_Start_Condition();
             LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_7);
         }
 }
