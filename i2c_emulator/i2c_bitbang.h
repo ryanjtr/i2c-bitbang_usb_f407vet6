@@ -48,7 +48,8 @@ typedef struct
 	bool isAddress_correct;/*Need setting to false at first*/
 	unsigned char bit;
 	unsigned char bit_RW;
-	uint8_t list_addr_slave[5];
+	uint8_t num_of_address;
+	uint8_t list_addr_slave[10];
 }i2c_t;
 
 

@@ -60,12 +60,25 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
-
+//void get_slave_address(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void get_slave_address(void)
+{
+		LL_mDelay(5000);
+	  uint8_t signal_to_get_slave_addr[2]={0x01,0x01};
+	  uint8_t response[2]={0x01,0x04};
+	  CDC_Transmit_FS(signal_to_get_slave_addr, 2);
+	  LL_mDelay(1000);
+	  i2c_handler.num_of_address=ReceivedData[2];
+	  for(int i=3;i<i2c_handler.num_of_address+3;i++)
+		  i2c_handler.list_addr_slave[i-3]=ReceivedData[i];
 
+	  CDC_Transmit_FS(response, 2);
+
+}
 /* USER CODE END 0 */
 
 /**
@@ -101,16 +114,21 @@ int main(void)
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
   I2C_Bitbang_Init();
-//  I2C_Bitbang_config();
-  uart_printf("slave-f407vet\r\n");
+  I2C_Bitbang_config();
   DWT_Clock_Enable();
+  uart_printf("slave-f407vet\r\n");
+  get_slave_address();
+  LL_GPIO_TogglePin(GPIOB, LL_GPIO_PIN_3);
 
-  Slave_txdata[0]=0x00;
+
+
+  i2c_handler.slave_txdata[0]=0x00;
   for (int i=1;i<256;i++)
   {
-	  Slave_txdata[i]=Slave_txdata[i-1]+1;
+	  i2c_handler.slave_txdata[i]=i2c_handler.slave_txdata[i-1]+1;
   }
-//  CDC_Transmit_FS(address, 1);
+  //sent signal to get slave addresses
+
   /* USER CODE END 2 */
 
   /* Infinite loop */

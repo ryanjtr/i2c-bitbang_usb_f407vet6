@@ -32,7 +32,7 @@
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 uint32_t    time;                       //Time out
-extern uint8_t     ReceivedData[100];          //Data buffer
+uint8_t     ReceivedData[100];          //Data buffer
 uint8_t     Rxcount = 0;                //Count
 uint32_t    dataSize = 0;               //Data size
 uint8_t     check = 0;                  //Data  available flag
@@ -268,14 +268,14 @@ static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
     //Copy data lenght
 	dataSize = *Len;
         //Get data from receive buffer
-//		if(HAL_GetTick() - time > 1000)
-//		{
+		if(HAL_GetTick() - time > 1000)
+		{
 			Rxcount = 0;
 			for(int i = 0; i < dataSize; i++)
 			{
 				ReceivedData[Rxcount++] = Buf[i];
 			}
-//		}
+		}
   USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
   USBD_CDC_ReceivePacket(&hUsbDeviceFS);
 
