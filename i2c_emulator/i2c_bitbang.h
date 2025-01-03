@@ -41,6 +41,7 @@ typedef struct
 	uint8_t slave_txdata[256];/*Need setting to 0xFF at first*/
 	uint8_t index_tx;/*Need reseting to 0 at first*/
 	uint8_t index_rx;/*Need reseting to 0 at first*/
+	uint8_t current_address;
 	bool start_condition;/*Need setting to false at first*/
 	bool stop_condition;/*Need setting to false at first*/
 	bool restart_i2c;/*Need setting to false at first*/
@@ -57,4 +58,5 @@ void I2C_Bitbang_config(void);
 void DWT_Clock_Enable(void);
 void I2C_Handle_Event(); // for interrupt
 void I2C_Check_Start_Condition();// for interrupt
+
 #endif                 /* I2C_BITBANG_H_ */

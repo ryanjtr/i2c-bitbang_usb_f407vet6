@@ -51,6 +51,7 @@ extern uint8_t count_rising;
 extern unsigned char bit_sda;
 extern unsigned char bit_scl;
 extern uint8_t ReceivedData[100]; // Data buffer
+extern i2c_t i2c_handler;
 //extern uint32_t count;
 /* USER CODE END PV */
 
@@ -100,14 +101,14 @@ int main(void)
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
   I2C_Bitbang_Init();
+//  I2C_Bitbang_config();
   uart_printf("slave-f407vet\r\n");
-  uart_printf("hclk=%ld\r\n",SystemCoreClock);
   DWT_Clock_Enable();
 
   Slave_txdata[0]=0x00;
   for (int i=1;i<256;i++)
   {
-	Slave_txdata[i]=Slave_txdata[i-1]+1;
+	  Slave_txdata[i]=Slave_txdata[i-1]+1;
   }
 //  CDC_Transmit_FS(address, 1);
   /* USER CODE END 2 */

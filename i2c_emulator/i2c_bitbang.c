@@ -57,8 +57,6 @@ void I2C_Bitbang_Init(void)
 
 void I2C_Bitbang_config(void)
 {
-    LL_mDelay(1000);
-    i2c_handler.count_bit = 0;
     i2c_handler.index_tx = 0;
     i2c_handler.index_rx = 0;
     i2c_handler.start_condition = false;
@@ -149,53 +147,56 @@ __STATIC_INLINE void i2c_enable_sda_falling()
 
 I2C_State i2c_state = I2C_IDLE;
 uint8_t count_bit = 0;
-uint8_t Slave_Address = 0x00;
+uint8_t slave_address = 0x00;
 unsigned char Slave_rxdata[256] = {0};
 uint8_t index_rxdata = 0;
 uint8_t Slave_txdata[256] = {0};
 uint8_t index_txdata = 0;
-bool start_condtion = false;
+bool start_condition = false;
 bool check_if_stop = false;
 unsigned char bit;
-unsigned char previous_bit = 0;
 unsigned char bit_RW;
-bool stop_condition = false;
 bool restart_i2c = false;
 uint8_t ReceivedData[100];
-uint8_t list_addr_slave[5] = { 0x68, 0x76, 0x58, 0x68,0x55};
+uint8_t list_addr_slave[5] = {0x68, 0x76, 0x58, 0x68, 0x55};
 bool correct_address = false;
-bool isRestart_condition = false;
-bool check_start = true;
+uint32_t timeout = 1000;
+uint32_t count = 0;
 /* I2C master clock speed = 100KHz*/
 void I2C_Check_Start_Condition()
 {
-    if (I2C_Read_SCL() && !I2C_Read_SDA())
-    {
-        start_condtion = true;
-        i2c_state = I2C_ADDRESS_RECEIVING;
-        while (I2C_Read_SCL()) // Don`t delete
-            ;
-        i2c_disable_sda_falling();
-        i2c_enable_scl_rising();
-    }
+	if (I2C_Read_SCL() && !I2C_Read_SDA())
+	{
+		i2c_state = I2C_ADDRESS_RECEIVING;
+		start_condition = true;
+		count_bit=0;
+	}
+	else
+	{
+		i2c_state = I2C_DATA_RECEIVING;
+	}
+	while (I2C_Read_SCL())
+		;
+	i2c_disable_sda_falling();
+	i2c_enable_scl_rising();
 }
 
 void I2C_Handle_Event()
 {
     bit = I2C_Read_SDA();
-    if (start_condtion)
+    if (start_condition)
     {
         switch (i2c_state)
         {
         case I2C_ADDRESS_RECEIVING:
-            Slave_Address = (Slave_Address << 1 | bit);
+            slave_address = (slave_address << 1 | bit);
             if (++count_bit == 8)
             {
                 DWT_Delay_us(5);
                 i2c_set_sda_opendrain();
                 for (int i = 0; i < 5; i++)
                 {
-                    if (Slave_Address >> 1 == list_addr_slave[i])
+                    if (slave_address >> 1 == list_addr_slave[i])
                     {
                         correct_address = true;
                         break;
@@ -204,7 +205,7 @@ void I2C_Handle_Event()
                 if (correct_address)
                 {
                     I2C_SDA_Low(); // Send ACK
-                    bit_RW = Slave_Address & 0x01;
+                    bit_RW = slave_address & 0x01;
                     i2c_state = I2C_SET_SDA_INPUT_ONLY;
                 }
                 else
@@ -254,31 +255,15 @@ void I2C_Handle_Event()
                 check_if_stop = false;
             }
             Slave_rxdata[index_rxdata] = (Slave_rxdata[index_rxdata] << 1) | bit;
-            if (bit && (count_bit==9))
-            {
-//
-            	LL_GPIO_TogglePin(GPIOB, LL_GPIO_PIN_3);
-//            	DWT_Delay_us(2);
-            	while (I2C_Read_SCL())
-                {
-                    if (I2C_Read_SDA())
-                    {
-                        i2c_state = I2C_ADDRESS_RECEIVING;
-                        count_bit=0;
-                        LL_GPIO_TogglePin(GPIOB, LL_GPIO_PIN_3);
-                        break;
-                    }
-                }
-            }
             if (++count_bit % 8 == 0)
             {
-				while (I2C_Read_SCL())
-					;
+                while (I2C_Read_SCL())
+                    ;
                 i2c_set_sda_opendrain();
                 I2C_SDA_Low(); // Send ACK
-				++index_rxdata;
-				check_if_stop = true;
-				i2c_state = I2C_SENDING_ACK;
+                ++index_rxdata;
+                check_if_stop = true;
+                i2c_state = I2C_SENDING_ACK;
             }
             break;
 
@@ -287,6 +272,8 @@ void I2C_Handle_Event()
             while (I2C_Read_SCL())
                 ;
             i2c_set_sda_input();
+            if(index_rxdata==1)
+            	i2c_enable_sda_falling();
             break;
 
         case I2C_DATA_SENDING:
@@ -345,7 +332,7 @@ void I2C_Handle_Event()
     if (restart_i2c)
     {
         count_bit = 0;
-        start_condtion = false;
+        start_condition = false;
         check_if_stop = false;
         restart_i2c = false;
         correct_address = false;
@@ -356,7 +343,7 @@ void I2C_Handle_Event()
             Slave_rxdata[i] = 0;
         }
         index_rxdata = 0;
-//        index_txdata = 0;
+        //        index_txdata = 0;
         I2C_Bitbang_Init();
     }
 }
