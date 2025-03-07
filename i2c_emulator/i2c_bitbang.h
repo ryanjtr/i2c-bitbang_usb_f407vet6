@@ -50,14 +50,16 @@ typedef struct
 	unsigned char bit_RW;
 	uint8_t num_of_address;
 	uint8_t list_addr_slave[10];
+	uint8_t start_condition_count;
+	uint8_t txdata;
+	uint8_t usb_trans_flag;
+	uint8_t command[256];
+	uint8_t command_length;
+
 }i2c_t;
 
 
-
-void I2C_Bitbang_Init(void);
-void I2C_Bitbang_config(void);
-void DWT_Clock_Enable(void);
+void I2C_BITBANG_Init(void);
 void I2C_Handle_Event(); // for interrupt
 void I2C_Check_Start_Condition();// for interrupt
-
 #endif                 /* I2C_BITBANG_H_ */

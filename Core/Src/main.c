@@ -23,6 +23,10 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "usbd_cdc_if.h"
+
+#include <stdbool.h>
+
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,13 +47,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-extern unsigned char  index_txdata;
-extern uint8_t Slave_txdata[256];
-extern unsigned char bit_RW;
-extern uint8_t count_falling;
-extern uint8_t count_rising;
-extern unsigned char bit_sda;
-extern unsigned char bit_scl;
+
 extern uint8_t ReceivedData[100]; // Data buffer
 extern i2c_t i2c_handler;
 //extern uint32_t count;
@@ -60,25 +58,13 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
-//void get_slave_address(void);
+static void get_slave_address(void);
+static void sync_app(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void get_slave_address(void)
-{
-		LL_mDelay(5000);
-	  uint8_t signal_to_get_slave_addr[2]={0x01,0x01};
-	  uint8_t response[2]={0x01,0x04};
-	  CDC_Transmit_FS(signal_to_get_slave_addr, 2);
-	  LL_mDelay(1000);
-	  i2c_handler.num_of_address=ReceivedData[2];
-	  for(int i=3;i<i2c_handler.num_of_address+3;i++)
-		  i2c_handler.list_addr_slave[i-3]=ReceivedData[i];
 
-	  CDC_Transmit_FS(response, 2);
-
-}
 /* USER CODE END 0 */
 
 /**
@@ -113,22 +99,44 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
-  I2C_Bitbang_Init();
-  I2C_Bitbang_config();
-  DWT_Clock_Enable();
-  uart_printf("slave-f407vet\r\n");
+  I2C_BITBANG_Init();
+
+//  uart_printf("slave-f407vet\r\n");
+
+
+
+//
+//  uint8_t led2on[5]={0xAA,0x01,0x02,0x01,0xFF};
+//  uint8_t led2off[5]={0xAA,0x01,0x02,0x00,0xFF};
+//  uint8_t led1on[5]={0xAA,0x01,0x01,0x01,0xFF};
+//  uint8_t led1off[5]={0xAA,0x01,0x01,0x00,0xFF};
+//  uint8_t led3on[5]={0xAA,0x01,0x03,0x01,0xFF};
+//  uint8_t led3off[5]={0xAA,0x01,0x03,0x00,0xFF};
+//  uint8_t led1toggle[5]={0xAA,0x01,1,0x02,0xFF};
+//  uint8_t data_to_matalab[10]={0xAA,0x02,0x02,0x0D,0x04,0x45,0x46,0x47,0x48,0xFF};
+//  uint8_t data1_to_matalab[10]={0xAA,0x02,0x02,0x1D,0x04,0x6D,0x6E,0x6F,0x70,0xFF};
+//  uint8_t data2_to_matalab[10]={0xAA,0x02,0x02,0x2D,0x04,0x7B,0x7C,0x7D,0x7E,0xFF};
+//  i2c_handler.num_of_address=3;
+//  i2c_handler.list_addr_slave[0] = 0x67;
+//  i2c_handler.list_addr_slave[1] = 0x68;
+//  i2c_handler.list_addr_slave[2] = 0x69;
+
+
+//  sync_app();
   get_slave_address();
-  LL_GPIO_TogglePin(GPIOB, LL_GPIO_PIN_3);
+
+  LL_GPIO_TogglePin(GPIOB, LL_GPIO_PIN_3);//Trigger board F1
 
 
-
-  i2c_handler.slave_txdata[0]=0x00;
-  for (int i=1;i<256;i++)
-  {
-	  i2c_handler.slave_txdata[i]=i2c_handler.slave_txdata[i-1]+1;
-  }
+//  LL_GPIO_TogglePin(GPIOC, LL_GPIO_PIN_9); //OFF
+//  i2c_handler.slave_txdata[0x10]=0x03;
+//  for (int i=0x10+1;i<256;i++)
+//  {
+//	  i2c_handler.slave_txdata[i]=i2c_handler.slave_txdata[i-1]+1;
+//  }
   //sent signal to get slave addresses
-
+//    xTaskCreate(read_from_eeprom, "read data from eeprom", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
+//    vTaskStartScheduler();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -138,6 +146,17 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+//
+
+//	  CDC_Transmit_FS(data_to_matalab, sizeof(data_to_matalab));
+//	  LL_mDelay(2000);
+//	  CDC_Transmit_FS(data1_to_matalab, sizeof(data1_to_matalab));
+//	  LL_mDelay(2000);
+//	  CDC_Transmit_FS(data2_to_matalab, sizeof(data2_to_matalab));
+//	  LL_mDelay(2000);
+//	  CDC_Transmit_FS(led1toggle, sizeof(led1toggle));
+//	  LL_mDelay(3000);
+
   }
   /* USER CODE END 3 */
 }
@@ -264,14 +283,17 @@ static void MX_GPIO_Init(void)
   LL_AHB1_GRP1_EnableClock(LL_AHB1_GRP1_PERIPH_GPIOB);
 
   /**/
-  LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_3);
+  LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_3);
 
   /**/
-  GPIO_InitStruct.Pin = LL_GPIO_PIN_3;
+  LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_5);
+
+  /**/
+  GPIO_InitStruct.Pin = LL_GPIO_PIN_3|LL_GPIO_PIN_5;
   GPIO_InitStruct.Mode = LL_GPIO_MODE_OUTPUT;
-  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_MEDIUM;
+  GPIO_InitStruct.Speed = LL_GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.OutputType = LL_GPIO_OUTPUT_PUSHPULL;
-  GPIO_InitStruct.Pull = LL_GPIO_PULL_NO;
+  GPIO_InitStruct.Pull = LL_GPIO_PULL_UP;
   LL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -279,7 +301,46 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+static void get_slave_address(void)
+{
+//	uint8_t signal_to_get_slave_addr[4]={0xAA,0x02,0x01,0xFF};
+//	LL_mDelay(2000);
+//	CDC_Transmit_FS(signal_to_get_slave_addr, sizeof(signal_to_get_slave_addr));
+//	LL_mDelay(3000);
+//	i2c_handler.num_of_address=ReceivedData[3];
+//	for(int i=4;i<i2c_handler.num_of_address+5;i++)
+//		{i2c_handler.list_addr_slave[i-4]=ReceivedData[i];}
 
+	  i2c_handler.num_of_address=3;
+	  i2c_handler.list_addr_slave[0] = 0x67;
+	  i2c_handler.list_addr_slave[1] = 0x68;
+	  i2c_handler.list_addr_slave[2] = 0x69;
+
+//	LL_mDelay(3000);
+
+
+}
+
+static void sync_app(void)
+{
+	uint8_t dumb[2]={0xAA,0xBB};
+	bool is_sync=false;
+	uint8_t timeout=10;
+	uint8_t count=0;
+	while(!is_sync)
+	{
+		LL_mDelay(1000);
+		if(ReceivedData[0]==0xAA && ReceivedData[1]==0xBB)
+		{
+			is_sync=true;
+			CDC_Transmit_FS(dumb, sizeof(dumb));
+			break;
+		}
+		if(++count > timeout)
+			NVIC_SystemReset();  // Reset MCU
+	}
+
+}
 /* USER CODE END 4 */
 
 /**
